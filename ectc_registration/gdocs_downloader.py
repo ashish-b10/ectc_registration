@@ -103,6 +103,6 @@ if __name__ == "__main__":
         creds = creds_fh.read()
     client = GoogleDocsDownloader(creds)
 
-    test_book_sheets = client.get_sheets(doc_url)
+    test_book_sheets = client.get_sheets(spreadsheet_feed_url(doc_url=doc_url))
     _log.info("Workbook %s has sheets %s" %(doc_url,
             ', '.join(test_book_sheets.keys())))

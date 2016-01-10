@@ -129,7 +129,8 @@ if __name__ == "__main__":
     with open(credential_file) as creds_fh:
         creds = creds_fh.read()
     downloader = GoogleDocsDownloader(creds)
-    reg_extracter = RegistrationExtractor(doc_url, downloader)
+    reg_extracter = RegistrationExtractor(
+            spreadsheet_feed_url(doc_url=doc_url), downloader)
     registered_schools = reg_extracter.get_registration_workbooks()
     _log.info("Parsed %d registered schools" %(len(registered_schools)))
 
