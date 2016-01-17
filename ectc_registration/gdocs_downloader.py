@@ -11,14 +11,9 @@ import csv
 
 SCOPES = 'https://www.googleapis.com/auth/drive.readonly'
 
-def spreadsheet_feed_url(doc_key=None, doc_url=None):
+def spreadsheet_feed_url(doc_url):
     """Returns the URL for the feed for a spreadsheet."""
-    if doc_key and doc_url:
-        raise Exception("Only one of doc_key or doc_url may be specified")
-    if not doc_key and not doc_url:
-        raise Exception("Either doc_key or doc_url must be specified")
-    if doc_key is None:
-        doc_key = urlparse(doc_url).path.split('/')[3]
+    doc_key = urlparse(doc_url).path.split('/')[3]
     return ("https://spreadsheets.google.com/feeds/worksheets/" + doc_key +
             "/private/full")
 
