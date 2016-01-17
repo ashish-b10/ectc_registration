@@ -1,3 +1,4 @@
 from .gdocs_downloader import GoogleDocsDownloader
 from .gdocs_downloader import spreadsheet_feed_url
 from .registration_extractor import RegistrationExtractor
+from .registration_extractor import SchoolRegistrationExtractor

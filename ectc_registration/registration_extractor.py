@@ -32,14 +32,14 @@ class RegistrationExtractor():
                 continue
 
             registration_doc_feed_url = spreadsheet_feed_url(doc_url=row[1])
-            registered_schools.append(SchoolRegistrationExtracter(
+            registered_schools.append(SchoolRegistrationExtractor(
                     school_name=row[0],
                     registration_doc_feed_url=registration_doc_feed_url,
                     approved=(row[3] == "Yes")))
 
         return registered_schools
 
-class SchoolRegistrationExtracter():
+class SchoolRegistrationExtractor():
 
     TEAM_SHEET_NAMES = ["Mens_A", "Mens_B", "Mens_C", "Womens_A", "Womens_B",
             "Womens_C"]
@@ -143,7 +143,7 @@ if __name__ == "__main__":
         _log.info("Parsed %d unimported competitors from %s"
                 %(len(school.unimported_competitors), school.school_name))
 
-        for team_sheet_name in SchoolRegistrationExtracter.TEAM_SHEET_NAMES:
+        for team_sheet_name in SchoolRegistrationExtractor.TEAM_SHEET_NAMES:
             _log.info("Recorded %d teams for %s from sheet %s" %(
                     sum(map(bool,school.teams[team_sheet_name])),
                     school.school_name, team_sheet_name))
