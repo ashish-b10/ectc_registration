@@ -119,11 +119,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
     credential_file = args.credential_file
     doc_url = args.doc_url
+    verbose = args.verbose is None
 
     import sys
     logging_format = '%(levelname)-5s %(name)s:%(lineno)4s - %(message)s'
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout,
-            format=logging_format)
+    if verbose:
+        logging.basicConfig(level=logging.DEBUG, stream=sys.stdout,
+                format=logging_format)
+    else:
+        logging.basicConfig(level=logging.INFO, stream=sys.stdout,
+                format=logging_format)
 
     _log.info("Attempting to import from %s" %(doc_url))
     with open(credential_file) as creds_fh:
