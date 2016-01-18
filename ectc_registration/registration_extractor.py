@@ -64,8 +64,7 @@ class SchoolRegistrationExtractor():
         for i in range(10):
             next(roster_csv) #roster starts on 11th row
 
-        self.imported_competitors=[]
-        self.unimported_competitors=[]
+        self.extracted_competitors=[]
         for i in range(100):
             row = next(roster_csv)
             if not row[3]:
@@ -76,18 +75,15 @@ class SchoolRegistrationExtractor():
             competitor['rank'] = row[4]
             competitor['sex'] = row[6]
             if not row[20]:
-                _log.debug("Not importing " + competitor['name']
-                        + " - empty weight field")
-                self.unimported_competitors.append(competitor)
+                _log.debug(competitor['name'] + " has empty weight field")
+                self.extracted_competitors.append(competitor)
                 continue
             try:
                 competitor['weight'] = float(row[20])
             except ValueError:
-                _log.warning("Not importing " + competitor['name']
-                        + " - unable to parse weight field [%s]" %(row[20]))
-                self.unimported_competitors.append(competitor)
-                continue
-            self.imported_competitors.append(competitor)
+                _log.warning("Failed to parse weight field [%s] for %s" %(
+                        row[20], competitor['name']))
+            self.extracted_competitors.append(competitor)
 
     def extract_teams(self, sheets, doc_downloader):
         self.teams = {}
@@ -143,10 +139,8 @@ if __name__ == "__main__":
         _log.info("Importing for %s from %s"
                 %(school.school_name, school.registration_doc_feed_url))
         school.extract(downloader)
-        _log.info("Parsed %d imported competitors from %s"
-                %(len(school.imported_competitors), school.school_name))
-        _log.info("Parsed %d unimported competitors from %s"
-                %(len(school.unimported_competitors), school.school_name))
+        _log.info("Parsed %d competitors from %s"
+                %(len(school.extracted_competitors), school.school_name))
 
         for team_sheet_name in SchoolRegistrationExtractor.TEAM_SHEET_NAMES:
             _log.info("Recorded %d teams for %s from sheet %s" %(
