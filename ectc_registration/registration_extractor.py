@@ -2,7 +2,6 @@ import logging
 _log = logging.getLogger(__name__)
 
 from .gdocs_downloader import GoogleDocsDownloader
-from .gdocs_downloader import spreadsheet_feed_url
 import json
 
 class RegistrationExtractor():
@@ -26,15 +25,15 @@ class RegistrationExtractor():
 
         registered_schools = []
         for row in dashboard_reader:
-            if not row[0]: #blank line signals end of schools list
+            school_name = row[0]
+            if not school_name: #blank line signals end of schools list
                 break
-            if not row[1]: #no registration document provided
+            doc_url = row[1]
+            if not doc_url: #no registration document provided
                 continue
 
-            registration_doc_feed_url = spreadsheet_feed_url(doc_url=row[1])
             registered_schools.append(SchoolRegistrationExtractor(
-                    school_name=row[0],
-                    registration_doc_feed_url=registration_doc_feed_url,
+                    school_name=school_name, registration_doc_url=doc_url,
                     approved=(row[3] == "Yes")))
 
         return registered_schools
@@ -44,13 +43,14 @@ class SchoolRegistrationExtractor():
     TEAM_SHEET_NAMES = ["Mens_A", "Mens_B", "Mens_C", "Womens_A", "Womens_B",
             "Womens_C"]
 
-    def __init__(self, school_name, registration_doc_feed_url, approved=False):
+    def __init__(self, school_name, registration_doc_url, approved=False):
         self.school_name = school_name
-        self.registration_doc_feed_url = registration_doc_feed_url
+        self.registration_doc_url = registration_doc_url
         self.approved = approved
 
     def extract(self, doc_downloader):
-        sheets = doc_downloader.get_sheets(self.registration_doc_feed_url)
+        registration_doc_feed_url = self.registration_doc_url
+        sheets = doc_downloader.get_sheets(registration_doc_feed_url)
         self.extract_competitors(self.download_roster_csv(
                 sheets, doc_downloader))
         self.extract_teams(sheets, doc_downloader)
@@ -130,14 +130,13 @@ if __name__ == "__main__":
     with open(credential_file) as creds_fh:
         creds = creds_fh.read()
     downloader = GoogleDocsDownloader(creds)
-    reg_extracter = RegistrationExtractor(
-            spreadsheet_feed_url(doc_url=doc_url), downloader)
+    reg_extracter = RegistrationExtractor(doc_url, downloader)
     registered_schools = reg_extracter.get_registration_workbooks()
     _log.info("Parsed %d registered schools" %(len(registered_schools)))
 
     for school in registered_schools:
         _log.info("Importing for %s from %s"
-                %(school.school_name, school.registration_doc_feed_url))
+                %(school.school_name, school.registration_doc_url))
         school.extract(downloader)
         _log.info("Parsed %d competitors from %s"
                 %(len(school.extracted_competitors), school.school_name))

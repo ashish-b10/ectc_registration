@@ -46,7 +46,8 @@ class GoogleDocsDownloader():
         Keyword arguments:
         doc_url -- The URL of the Google Docs object
         """
-        body = self.download_file(doc_url)[1]
+        doc_feed_url = spreadsheet_feed_url(doc_url)
+        body = self.download_file(doc_feed_url)[1]
         if not body:
             raise Exception("Request for %s returned empty body"
                     %(doc_feed_url))
