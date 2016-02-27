@@ -65,8 +65,7 @@ class SchoolRegistrationExtractor():
             next(roster_csv) #roster starts on 11th row
 
         self.extracted_competitors=[]
-        for i in range(100):
-            row = next(roster_csv)
+        for row in roster_csv:
             if not row[3]:
                 #_log.debug("Skipping empty line")
                 continue
