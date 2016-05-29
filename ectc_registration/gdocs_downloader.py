@@ -16,7 +16,8 @@ class GoogleDocsDownloader():
     ODS_MIME_TYPE = 'application/x-vnd.oasis.opendocument.spreadsheet'
 
     def __init__(self, creds_file=None, creds_json=None, download=True):
-        _log.info("Loading credentials from %s" %creds_file)
+        if creds_file:
+            _log.info("Loading credentials from %s" %creds_file)
         self.drive_service = self._create_drive_service(creds_file, creds_json)
 
     @staticmethod
@@ -73,9 +74,7 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.INFO, stream=sys.stdout,
                 format=logging_format)
 
-    _log.info("Loading credentials from %s" %credential_file)
     client = GoogleDocsDownloader(credential_file)
 
-    _log.info("Attempting to download %s" %(file_id))
     response = client.download_file(file_id)
     _log.info("Received %d bytes from %s" %(len(response), file_id))
