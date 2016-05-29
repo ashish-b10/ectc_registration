@@ -12,7 +12,6 @@ import odf.opendocument
 import odf.table
 import odf.text
 import zipfile
-import json
 
 SCOPES = 'https://www.googleapis.com/auth/drive.readonly'
 
