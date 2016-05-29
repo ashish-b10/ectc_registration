@@ -15,5 +15,6 @@ setup(
         'google-api-python-client',
         'pyopenssl',
         'oauth2client',
+        'odfpy',
     ]
 )

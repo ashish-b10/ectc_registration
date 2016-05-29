@@ -2,12 +2,11 @@ import logging
 _log = logging.getLogger(__name__)
 
 from .gdocs_downloader import GoogleDocsDownloader
-import json
+from .gdrive_spreadsheet import GoogleDriveSpreadsheet
 
 class RegistrationExtractor():
-    def __init__(self, registration_doc_url, doc_downloader):
-        self.doc_url = registration_doc_url
-        self.docs_downloader = doc_downloader
+    def __init__(self, workbook):
+        self._workbook = workbook
 
     def get_registration_workbooks(self):
         """Gets the registration workbooks in the registration document.
@@ -15,22 +14,24 @@ class RegistrationExtractor():
         Returns:
             A list of schools and their registration document URLs.
         """
-        sheets = self.docs_downloader.get_sheets(self.doc_url)
-        dashboard_url = sheets['Schools']['exportcsv']
-        dashboard_body = self.docs_downloader.download_file(dashboard_url)[1]
-        dashboard_reader = self.docs_downloader.body_to_csv(dashboard_body)
-
-        next(dashboard_reader) #schools start on the third row
-        next(dashboard_reader)
-
+        school_rows = self._workbook.sheets['Schools']
+        next(school_rows) # school registrations start in row 3
+        next(school_rows)
         registered_schools = []
-        for row in dashboard_reader:
-            school_name = row[0]
-            if not school_name: #blank line signals end of schools list
+        for row in school_rows:
+            if len(row) < 2: #blank line signals end of schools list
                 break
+            school_name = row[0]
             doc_url = row[1]
-            if not doc_url: #no registration document provided
-                continue
+            if not school_name: #empty school_name signals end of schools list
+                break
+            if not doc_url.startswith("http"):
+                continue #no registration document provided
+
+            try:
+                approved = row[3]
+            except IndexError:
+                approved = ''
 
             registered_schools.append(SchoolRegistrationExtractor(
                     school_name=school_name, registration_doc_url=doc_url,
@@ -49,23 +50,20 @@ class SchoolRegistrationExtractor():
         self.approved = approved
 
     def extract(self, doc_downloader):
-        registration_doc_feed_url = self.registration_doc_url
-        sheets = doc_downloader.get_sheets(registration_doc_feed_url)
-        self.extract_competitors(self.download_roster_csv(
-                sheets, doc_downloader))
-        self.extract_teams(sheets, doc_downloader)
+        doc_url = self.registration_doc_url
+        file_id = GoogleDocsDownloader.extract_file_id(doc_url)
+        _log.debug("Importing %s from %s", self.school_name, file_id)
+        workbook = GoogleDriveSpreadsheet(doc_downloader, file_id)
+        self.extract_competitors(workbook)
+        self.extract_teams(workbook)
 
-    def download_roster_csv(self, sheets, doc_downloader):
-        roster_doc_body = doc_downloader.download_file(
-                sheets['Weigh-Ins']['exportcsv'])[1]
-        return doc_downloader.body_to_csv(roster_doc_body)
-
-    def extract_competitors(self, roster_csv):
+    def extract_competitors(self, workbook):
+        roster = workbook.sheets['Weigh-Ins']
         for i in range(10):
-            next(roster_csv) #roster starts on 11th row
+            next(roster) #roster starts on 11th row
 
         self.extracted_competitors=[]
-        for row in roster_csv:
+        for row in roster:
             if not row[3]:
                 #_log.debug("Skipping empty line")
                 continue
@@ -84,52 +82,49 @@ class SchoolRegistrationExtractor():
                         row[20], competitor['name']))
             self.extracted_competitors.append(competitor)
 
-    def extract_teams(self, sheets, doc_downloader):
+    def extract_teams(self, workbook):
         self.teams = {}
         for sheet_name in self.TEAM_SHEET_NAMES:
-            teams = self.extract_division_teams(
-                    sheets[sheet_name]['exportcsv'], doc_downloader)
+            teams = self.extract_division_teams(workbook.sheets[sheet_name])
             self.teams[sheet_name] = teams
 
     def download_division_teams_csv(self, sheet_url, doc_downloader):
         division_teams_body = doc_downloader.download_file(sheet_url)[1]
         return doc_downloader.body_to_csv(division_teams_body)
 
-    def extract_division_teams(self, sheet_url, doc_downloader):
-        division_teams_csv = self.download_division_teams_csv(sheet_url,
-                doc_downloader)
-
+    def extract_division_teams(self, team_sheet):
         for i in range(6):
-            next(division_teams_csv) # teams start on 7th line
+            next(team_sheet) # teams start on 7th line
 
-        return [self.read_team(division_teams_csv) for i in range(10)]
+        return [self.read_team(team_sheet) for i in range(10)]
 
-    def read_team(self, division_teams_csv):
+    def read_team(self, division_teams_rows):
         # read lightweight, middleweight, heavyweight, alternate1, alternate2
-        members = [next(division_teams_csv)[3] for i in range(5)]
+        members = [next(division_teams_rows)[3] for i in range(5)]
         return members if any(members) else None
 
+def log_teams(school):
+    for team_sheet_name in SchoolRegistrationExtractor.TEAM_SHEET_NAMES:
+        for team_num, team_roster in enumerate(school.teams[team_sheet_name]):
+            if not team_roster:
+                continue
+
+            _log.info("Recorded %s %d: %s" %(team_sheet_name, team_num+1,
+                    str(team_roster)))
+
 if __name__ == "__main__":
-    from .argparser import parser
+    from .argparser import parser, init_logger
     args = parser.parse_args()
     credential_file = args.credential_file
-    doc_url = args.doc_url
+    file_id = args.file_id
     verbose = args.verbose is None
 
     import sys
-    logging_format = '%(levelname)-5s %(name)s:%(lineno)4s - %(message)s'
-    if verbose:
-        logging.basicConfig(level=logging.DEBUG, stream=sys.stdout,
-                format=logging_format)
-    else:
-        logging.basicConfig(level=logging.INFO, stream=sys.stdout,
-                format=logging_format)
+    init_logger(sys.stdout, verbose=verbose)
 
-    _log.info("Attempting to import from %s" %(doc_url))
-    with open(credential_file) as creds_fh:
-        creds = creds_fh.read()
-    downloader = GoogleDocsDownloader(creds)
-    reg_extracter = RegistrationExtractor(doc_url, downloader)
+    downloader = GoogleDocsDownloader(credential_file)
+    master_workbook = GoogleDriveSpreadsheet(downloader, file_id)
+    reg_extracter = RegistrationExtractor(master_workbook)
     registered_schools = reg_extracter.get_registration_workbooks()
     _log.info("Parsed %d registered schools" %(len(registered_schools)))
 
@@ -140,7 +135,4 @@ if __name__ == "__main__":
         _log.info("Parsed %d competitors from %s"
                 %(len(school.extracted_competitors), school.school_name))
 
-        for team_sheet_name in SchoolRegistrationExtractor.TEAM_SHEET_NAMES:
-            _log.info("Recorded %d teams for %s from sheet %s" %(
-                    sum(map(bool,school.teams[team_sheet_name])),
-                    school.school_name, team_sheet_name))
+        log_teams(school)
