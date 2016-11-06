@@ -19,23 +19,22 @@ class RegistrationExtractor():
         next(school_rows)
         registered_schools = []
         for row in school_rows:
-            if len(row) < 2: #blank line signals end of schools list
-                break
+            if row[0] == "TOTALS:":
+                break #end of schools list
             school_name = row[0]
-            doc_url = row[1]
-            if not school_name: #empty school_name signals end of schools list
-                break
+            doc_url = row[2]
+
             if not doc_url.startswith("http"):
                 continue #no registration document provided
 
             try:
-                approved = row[3]
+                approved = row[4]
             except IndexError:
                 approved = ''
 
             registered_schools.append(SchoolRegistrationExtractor(
                     school_name=school_name, registration_doc_url=doc_url,
-                    approved=(row[3] == "Yes")))
+                    approved=(approved == "Yes")))
 
         return registered_schools
 
